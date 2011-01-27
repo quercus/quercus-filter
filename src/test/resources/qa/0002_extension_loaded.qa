@@ -1,0 +1,13 @@
+<title>filter: constants</title>
+
+<php out='stdout'>
+<?php
+
+echo extension_loaded("filter")?"LOADED":"NOT LOADED";
+
+?>
+</php>
+
+<compare file='/stdout' escape>
+LOADED
+</compare>
