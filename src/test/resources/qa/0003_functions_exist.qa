@@ -1,0 +1,32 @@
+<title>filter: constants</title>
+
+<php out='stdout'>
+<?php
+$functions = array(
+"filter_has_var",
+"filter_id",
+"filter_input_array",
+"filter_input",
+"filter_list",
+"filter_var_array",
+"filter_var"
+);
+
+foreach($functions as $function)
+{
+    var_dump("$function: " . function_exists($function));
+}
+
+?>
+</php>
+
+<compare file='/stdout' escape>
+string(17) "filter_has_var: 1"
+string(12) "filter_id: 1"
+string(21) "filter_input_array: 1"
+string(15) "filter_input: 1"
+string(14) "filter_list: 1"
+string(19) "filter_var_array: 1"
+string(13) "filter_var: 1"
+
+</compare>
