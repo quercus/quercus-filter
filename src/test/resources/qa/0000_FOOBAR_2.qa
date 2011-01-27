@@ -1,0 +1,14 @@
+<title>filter: constants</title>
+<xfail/>
+<php out='stdout'>
+<?php
+
+echo "foo";
+
+?>
+</php>
+
+<compare file='/stdout' escape>
+bar
+
+</compare>

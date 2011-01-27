@@ -1,0 +1,13 @@
+<title>filter: constants</title>
+<xpass/>
+<php out='stdout'>
+<?php
+
+echo "foo";
+
+?>
+</php>
+
+<compare file='/stdout' escape>
+foo
+</compare>
