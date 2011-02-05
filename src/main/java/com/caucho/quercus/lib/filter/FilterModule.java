@@ -38,10 +38,8 @@ import com.caucho.quercus.env.ArrayValue;
 import com.caucho.quercus.env.BooleanValue;
 import com.caucho.quercus.env.CompiledConstStringValue;
 import com.caucho.quercus.env.Env;
-import com.caucho.quercus.env.EnvVar;
-import com.caucho.quercus.env.MethodIntern;
+import com.caucho.quercus.env.LongValue;
 import com.caucho.quercus.env.StringValue;
-import com.caucho.quercus.env.UnicodeValueImpl;
 import com.caucho.quercus.env.Value;
 import com.caucho.quercus.module.AbstractQuercusModule;
 import com.caucho.server.snmp.types.IntegerValue;
@@ -181,10 +179,10 @@ public class FilterModule extends AbstractQuercusModule {
      * @param variable_name     Name of a variable to check.
      * @return Returns TRUE on success or FALSE on failure.
      */
-    public BooleanValue filter_has_var(Env env, IntegerValue type, StringValue variable_name)
+    public BooleanValue filter_has_var(Env env, LongValue type, StringValue variable_name)
     {
     	// cast to int for switch; type value must fit within int range
-    	switch ((int) type.getLong()) {
+    	switch (type.toInt()) {
     	case INPUT_GET:
     		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_GET, false, false).get(), variable_name));
     	case INPUT_POST:
