@@ -1,4 +1,4 @@
-package com.aucho.quercus.lib.filter;
+package com.caucho.quercus.lib.filter;
 
 import org.junit.Before;
 import org.junit.Test;
