@@ -15,12 +15,16 @@ public class TestQuercusFilter {
 		engine = (QuercusScriptEngine) new QuercusScriptEngineFactory().getScriptEngine();
 	}
 	
+	private static String php_script(String code) {
+		return "<?php\n" + code + "\n?>";
+	}
+	
 	@Test
 	public void test_filter_has_var_INPUT_GET() throws Exception {
 		String[] types = {
 			"GET",
 			"POST",
-			"COOKIE",
+			// "COOKIE", // request is not set in QuercusScriptEngine so this will throw NPE
 			"ENV",
 			"SESSION",
 			"SERVER",
@@ -31,12 +35,10 @@ public class TestQuercusFilter {
 			String undefined_var = "undefined_" + type + "_var;";
 			
 			StringBuilder script = new StringBuilder();
-			script.append("<?php\n");
 			script.append("$_" + type + "['" + defined_var + "'] = 1;\n");
-			script.append("echo filter_has_var(INPUT_" + type + ", '" + defined_var + "') ? 'Yes' : 'No';\n");
-			script.append("?>");
+			script.append("return filter_has_var(INPUT_" + type + ", '" + defined_var + "') ? 'Yes' : 'No';\n");
 			
-			//Assert.assertEquals("Yes", engine.eval(script.toString()));
+			Assert.assertEquals("Yes", engine.eval(php_script(script.toString())));
 			
 		}
 	}
