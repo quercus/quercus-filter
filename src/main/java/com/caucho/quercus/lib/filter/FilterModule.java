@@ -38,6 +38,7 @@ import com.caucho.quercus.env.ArrayValue;
 import com.caucho.quercus.env.BooleanValue;
 import com.caucho.quercus.env.CompiledConstStringValue;
 import com.caucho.quercus.env.Env;
+import com.caucho.quercus.env.EnvVar;
 import com.caucho.quercus.env.LongValue;
 import com.caucho.quercus.env.StringValue;
 import com.caucho.quercus.env.Value;
@@ -148,6 +149,17 @@ public class FilterModule extends AbstractQuercusModule {
     	addConstant(_constMap, "INPUT_REQUEST", INPUT_REQUEST);
     }
     
+    private static final HashMap<Integer, CompiledConstStringValue> _inputTypeMap = new HashMap<Integer, CompiledConstStringValue>();
+    static {
+      _inputTypeMap.put(INPUT_POST, _POST);
+      _inputTypeMap.put(INPUT_GET, _GET);
+      _inputTypeMap.put(INPUT_COOKIE, _COOKIE);
+      _inputTypeMap.put(INPUT_ENV, _ENV);
+      _inputTypeMap.put(INPUT_SERVER, _SERVER);
+      _inputTypeMap.put(INPUT_SESSION, _SESSION);
+      _inputTypeMap.put(INPUT_REQUEST, _REQUEST);
+    }
+    
     public FilterModule() {
     }
     
@@ -181,30 +193,13 @@ public class FilterModule extends AbstractQuercusModule {
      */
     public BooleanValue filter_has_var(Env env, LongValue type, StringValue variable_name)
     {
-    	// cast to int for switch; type value must fit within int range
-    	switch (type.toInt()) {
-    	case INPUT_GET:
-    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_GET, false, false).get(), variable_name));
-    	case INPUT_POST:
-    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_POST, false, false).get(), variable_name));
-    	case INPUT_COOKIE:
-    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_COOKIE, false, false).get(), variable_name));
-    	case INPUT_SERVER:
-    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_SERVER, false, false).get(), variable_name));
-    	case INPUT_ENV:
-    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_ENV, false, false).get(), variable_name));
-    	case INPUT_SESSION:
-    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_SESSION, false, false).get(), variable_name));
-    	case INPUT_REQUEST:
-    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_REQUEST, false, false).get(), variable_name));
-    	default:
+    	CompiledConstStringValue t = _inputTypeMap.get(type.toInt()); 
+    	if (t == null) {
+    		// TODO: throw something?
     		return BooleanValue.FALSE;
-    		// TODO:
-    		// throw something?
-    	
     	}
-    	
-    	//throw new UnimplementedException("filter_has_var not yet implemented ");
+    	EnvVar superglobal = env.getGlobalEnvVar(t, false, false);
+    	return BooleanValue.create(arrayHasValue(superglobal.get(), variable_name));
     }
 
 

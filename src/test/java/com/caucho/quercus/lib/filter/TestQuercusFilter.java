@@ -1,5 +1,7 @@
 package com.caucho.quercus.lib.filter;
 
+import java.text.MessageFormat;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -30,16 +32,13 @@ public class TestQuercusFilter {
 			"SERVER",
 			"REQUEST"
 		};
+		String prologue = "$_{0}['test_var'] = 1;\n";
+		String test = "return filter_has_var(INPUT_{0}, 'test_var') ? 'Yes' : 'No';";
+
 		for (String type: types) {
-			String defined_var = "defined_" + type + "_var;";
-			String undefined_var = "undefined_" + type + "_var;";
-			
-			StringBuilder script = new StringBuilder();
-			script.append("$_" + type + "['" + defined_var + "'] = 1;\n");
-			script.append("return filter_has_var(INPUT_" + type + ", '" + defined_var + "') ? 'Yes' : 'No';\n");
-			
-			Assert.assertEquals("Yes", engine.eval(php_script(script.toString())));
-			
+			System.out.println("Type: " + type);
+			Assert.assertEquals("Yes", engine.eval(php_script(MessageFormat.format(prologue + test, type))));
+			//Assert.assertEquals("No", engine.eval(php_script(MessageFormat.format(test, type))));
 		}
 	}
 }
