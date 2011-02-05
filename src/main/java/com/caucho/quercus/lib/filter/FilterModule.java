@@ -29,12 +29,19 @@
 
 package com.caucho.quercus.lib.filter;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.caucho.quercus.UnimplementedException;
 import com.caucho.quercus.annotation.Optional;
 import com.caucho.quercus.env.ArrayValue;
 import com.caucho.quercus.env.BooleanValue;
+import com.caucho.quercus.env.CompiledConstStringValue;
 import com.caucho.quercus.env.Env;
+import com.caucho.quercus.env.EnvVar;
+import com.caucho.quercus.env.MethodIntern;
 import com.caucho.quercus.env.StringValue;
+import com.caucho.quercus.env.UnicodeValueImpl;
 import com.caucho.quercus.env.Value;
 import com.caucho.quercus.module.AbstractQuercusModule;
 import com.caucho.server.snmp.types.IntegerValue;
@@ -120,14 +127,53 @@ public class FilterModule extends AbstractQuercusModule {
     public static final int FILTER_FLAG_NO_RES_RANGE      = 0x400000; //     Deny reserved addresses in "validate_ip" filter.
     public static final int FILTER_FLAG_NO_PRIV_RANGE     = 0x800000; //    Deny private addresses in "validate_ip" filter.
 
+    /* Superglobal constants. Not exposed by Quercus core? */
+    private static final CompiledConstStringValue _GLOBALS = new CompiledConstStringValue("GLOBALS");
+    private static final CompiledConstStringValue _SERVER = new CompiledConstStringValue("_SERVER");
+    private static final CompiledConstStringValue _GET = new CompiledConstStringValue("_GET");
+    private static final CompiledConstStringValue _POST = new CompiledConstStringValue("_POST");
+    private static final CompiledConstStringValue _FILES = new CompiledConstStringValue("_FILES");
+    private static final CompiledConstStringValue _REQUEST = new CompiledConstStringValue("_REQUEST");
+    private static final CompiledConstStringValue _COOKIE = new CompiledConstStringValue("_COOKIE");
+    private static final CompiledConstStringValue _SESSION = new CompiledConstStringValue("_SESSION");
+    private static final CompiledConstStringValue _ENV = new CompiledConstStringValue("_ENV");
+    
+    private static final HashMap<StringValue,Value> _constMap = new HashMap<StringValue,Value>();
+    static {
+    	// not sure whether these should be in core or filter module
+    	addConstant(_constMap, "INPUT_POST", INPUT_POST);
+    	addConstant(_constMap, "INPUT_GET", INPUT_GET);
+    	addConstant(_constMap, "INPUT_COOKIE", INPUT_COOKIE);
+    	addConstant(_constMap, "INPUT_ENV", INPUT_ENV);
+    	addConstant(_constMap, "INPUT_SERVER", INPUT_SERVER);
+    	addConstant(_constMap, "INPUT_SESSION", INPUT_SESSION);
+    	addConstant(_constMap, "INPUT_REQUEST", INPUT_REQUEST);
+    }
+    
     public FilterModule() {
     }
-
+    
+    @Override
+    public Map<StringValue,Value> getConstMap()
+    {
+      return _constMap;
+    }
+    
     @Override
     public String[] getLoadedExtensions() {
         return new String[]{"filter"};
     }
 
+    private static final boolean arrayHasValue(Value value, StringValue name) {
+    	if (! (value instanceof ArrayValue))
+	        return false;
+
+	    ArrayValue array = (ArrayValue) value;
+
+	    Value v = array.get(name);
+	    return !(v == null || v.isNull() || v.isEmpty());
+    }
+    
     /**
      * filter_has_var — Checks if variable of specified type exists
      * @param env The Quercus Environment
@@ -139,14 +185,28 @@ public class FilterModule extends AbstractQuercusModule {
     {
     	// cast to int for switch; type value must fit within int range
     	switch ((int) type.getLong()) {
-    	case INPUT_GET: break;
-    	case INPUT_POST: break;
-    	case INPUT_COOKIE: break;
-    	case INPUT_SERVER: break;
-    	case INPUT_ENV: break;
+    	case INPUT_GET:
+    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_GET, false, false).get(), variable_name));
+    	case INPUT_POST:
+    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_POST, false, false).get(), variable_name));
+    	case INPUT_COOKIE:
+    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_COOKIE, false, false).get(), variable_name));
+    	case INPUT_SERVER:
+    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_SERVER, false, false).get(), variable_name));
+    	case INPUT_ENV:
+    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_ENV, false, false).get(), variable_name));
+    	case INPUT_SESSION:
+    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_SESSION, false, false).get(), variable_name));
+    	case INPUT_REQUEST:
+    		return BooleanValue.create(arrayHasValue(env.getGlobalEnvVar(_REQUEST, false, false).get(), variable_name));
+    	default:
+    		return BooleanValue.FALSE;
+    		// TODO:
+    		// throw something?
     	
     	}
-    	throw new UnimplementedException("filter_has_var not yet implemented ");
+    	
+    	//throw new UnimplementedException("filter_has_var not yet implemented ");
     }
 
 
