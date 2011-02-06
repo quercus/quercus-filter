@@ -199,6 +199,9 @@ public class FilterModule extends AbstractQuercusModule {
     		return BooleanValue.FALSE;
     	}
     	EnvVar superglobal = env.getGlobalEnvVar(t, false, false);
+    	if (superglobal == null) {
+    		return BooleanValue.FALSE;
+    	}
     	return BooleanValue.create(arrayHasValue(superglobal.get(), variable_name));
     }
 
