@@ -29,6 +29,7 @@
 
 package com.caucho.quercus.lib.filter;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,6 +40,7 @@ import com.caucho.quercus.env.BooleanValue;
 import com.caucho.quercus.env.CompiledConstStringValue;
 import com.caucho.quercus.env.Env;
 import com.caucho.quercus.env.EnvVar;
+import com.caucho.quercus.env.JavaCollectionAdapter;
 import com.caucho.quercus.env.LongValue;
 import com.caucho.quercus.env.StringValue;
 import com.caucho.quercus.env.Value;
@@ -318,7 +320,8 @@ public class FilterModule extends AbstractQuercusModule {
      */
     public ArrayValue filter_list(Env env)
     {
-        throw new UnimplementedException();
+        ArrayList<Object> filter_names = new ArrayList<Object>(_filterList.keySet());
+        return new JavaCollectionAdapter(filter_names, env.getJavaClassDefinition(filter_names.getClass()));
     }
 
     /**

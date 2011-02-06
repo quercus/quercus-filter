@@ -1,6 +1,10 @@
 package com.caucho.quercus.lib.filter;
 
 import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import javax.script.ScriptException;
@@ -49,5 +53,14 @@ public class TestQuercusFilter {
         for (Map.Entry<String, Integer> entry: FilterModule._filterList.entrySet()) {
             Assert.assertEquals(entry.getValue().longValue(), eval("return filter_id(''{0}'');",entry.getKey()));
         }
+    }
+    
+    @Test
+    public void test_filter_list() throws ScriptException {
+        List<String> result = new ArrayList<String>((Collection<String>) eval("return filter_list();"));
+        List<String> expected = new ArrayList<String>(FilterModule._filterList.keySet());
+        Collections.sort(result);
+        Collections.sort(expected);
+        Assert.assertEquals(expected, result);
     }
 }
