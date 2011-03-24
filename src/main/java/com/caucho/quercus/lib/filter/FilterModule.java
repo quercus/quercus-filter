@@ -29,9 +29,21 @@
 
 package com.caucho.quercus.lib.filter;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
 import com.caucho.quercus.UnimplementedException;
 import com.caucho.quercus.annotation.Optional;
-import com.caucho.quercus.env.*;
+import com.caucho.quercus.env.ArrayValue;
+import com.caucho.quercus.env.BooleanValue;
+import com.caucho.quercus.env.CompiledConstStringValue;
+import com.caucho.quercus.env.Env;
+import com.caucho.quercus.env.EnvVar;
+import com.caucho.quercus.env.JavaCollectionAdapter;
+import com.caucho.quercus.env.LongValue;
+import com.caucho.quercus.env.StringValue;
+import com.caucho.quercus.env.Value;
 import com.caucho.quercus.module.AbstractQuercusModule;
 import com.caucho.server.snmp.types.IntegerValue;
 
@@ -45,65 +57,160 @@ public class FilterModule extends AbstractQuercusModule {
     /**
      * ********** CONSTANTS **************
      */
-    public static final int INPUT_POST = 0; // POST variables.
-    public static final int INPUT_GET = 1; //    GET variables.
-    public static final int INPUT_COOKIE = 2; //    COOKIE variables.
-    public static final int INPUT_ENV = 4; //    ENV variables.
-    public static final int INPUT_SERVER = 5; //    SERVER variables.
-    public static final int INPUT_SESSION = 6; //    SESSION variables. (not implemented yet)
-    public static final int INPUT_REQUEST = 99; //    REQUEST variables. (not implemented yet)
-    public static final int FILTER_FLAG_NONE = 0; //    No flags.
-    public static final int FILTER_REQUIRE_SCALAR = 33554432; //    Flag used to require scalar as input
-    public static final int FILTER_REQUIRE_ARRAY = 16777216; //    Require an array as input.
-    public static final int FILTER_FORCE_ARRAY = 67108864; //    Always returns an array.
-    public static final int FILTER_NULL_ON_FAILURE = 134217728; //    Use NULL instead of FALSE on failure.
-    public static final int FILTER_VALIDATE_INT = 257; //    ID of "int" filter.
-    public static final int FILTER_VALIDATE_BOOLEAN = 258; //    ID of "boolean" filter.
-    public static final int FILTER_VALIDATE_FLOAT = 259; //      ID of "float" filter.
-    public static final int FILTER_VALIDATE_REGEXP = 272; //    ID of "validate_regexp" filter.
-    public static final int FILTER_VALIDATE_URL = 273; //    ID of "validate_url" filter.
-    public static final int FILTER_VALIDATE_EMAIL = 274; //    ID of "validate_email" filter.
-    public static final int FILTER_VALIDATE_IP = 275; //    ID of "validate_ip" filter.
-    public static final int FILTER_DEFAULT = 516; //    ID of default ("string") filter.
-    public static final int FILTER_UNSAFE_RAW = 516; //    ID of "unsafe_raw" filter.
-    public static final int FILTER_SANITIZE_STRING = 513; //    ID of "string" filter.
-    public static final int FILTER_SANITIZE_STRIPPED = 513; //    ID of "stripped" filter.
-    public static final int FILTER_SANITIZE_ENCODED = 514; //    ID of "encoded" filter.
-    public static final int FILTER_SANITIZE_SPECIAL_CHARS = 515; //    ID of "special_chars" filter.
-    public static final int FILTER_SANITIZE_EMAIL = 517; //    ID of "email" filter.
-    public static final int FILTER_SANITIZE_URL = 518; //    ID of "url" filter.
-    public static final int FILTER_SANITIZE_NUMBER_INT = 519; //    ID of "number_int" filter.
-    public static final int FILTER_SANITIZE_NUMBER_FLOAT = 520; //    ID of "number_float" filter.
-    public static final int FILTER_SANITIZE_MAGIC_QUOTES = 521; //    ID of "magic_quotes" filter.
-    public static final int FILTER_CALLBACK = 1024; //    ID of "callback" filter.
-    public static final int FILTER_FLAG_ALLOW_OCTAL = 1; //    Allow octal notation (0[0-7]+) in "int" filter.
-    public static final int FILTER_FLAG_ALLOW_HEX = 2; //    Allow hex notation (0x[0-9a-fA-F]+) in "int" filter.
-    public static final int FILTER_FLAG_STRIP_LOW = 4; //    Strip characters with ASCII value less than 32.
-    public static final int FILTER_FLAG_STRIP_HIGH = 8; //    Strip characters with ASCII value greater than 127.
-    public static final int FILTER_FLAG_ENCODE_LOW = 16; //    Encode characters with ASCII value less than 32.
-    public static final int FILTER_FLAG_ENCODE_HIGH = 32; //    Encode characters with ASCII value greater than 127.
-    public static final int FILTER_FLAG_ENCODE_AMP = 64; //    Encode &.
-    public static final int FILTER_FLAG_NO_ENCODE_QUOTES = 128; //    Don't encode ' and ".
-    public static final int FILTER_FLAG_EMPTY_STRING_NULL = 256; //    (No use for now.)
-    public static final int FILTER_FLAG_ALLOW_FRACTION = 4096; //    Allow fractional part in "number_float" filter.
-    public static final int FILTER_FLAG_ALLOW_THOUSAND = 8192; //    Allow thousand separator (,) in "number_float" filter.
-    public static final int FILTER_FLAG_ALLOW_SCIENTIFIC = 16384; //    Allow scientific notation (e, E) in "number_float" filter.
-    public static final int FILTER_FLAG_SCHEME_REQUIRED = 65536; //    Require scheme in "validate_url" filter.
-    public static final int FILTER_FLAG_HOST_REQUIRED = 131072; //    Require host in "validate_url" filter.
-    public static final int FILTER_FLAG_PATH_REQUIRED = 262144; //    Require path in "validate_url" filter.
-    public static final int FILTER_FLAG_QUERY_REQUIRED = 524288; //    Require query in "validate_url" filter.
-    public static final int FILTER_FLAG_IPV4 = 1048576; //    Allow only IPv4 address in "validate_ip" filter.
-    public static final int FILTER_FLAG_IPV6 = 2097152; //     Allow only IPv6 address in "validate_ip" filter.
-    public static final int FILTER_FLAG_NO_RES_RANGE = 4194304; //     Deny reserved addresses in "validate_ip" filter.
-    public static final int FILTER_FLAG_NO_PRIV_RANGE = 8388608; //    Deny private addresses in "validate_ip" filter.
-    public static final int FILTER_SANITIZE_FULL_SPECIAL_CHARS = 515;
+
+    /* INPUT constants taken from http://svn.php.net/viewvc/php/php-src/branches/PHP_5_3/main/php_variables.h?revision=306939&view=markup
+     * Should probably move to Quercus core.
+     */
+    public static final int INPUT_POST    = 0; // POST variables.
+    public static final int INPUT_GET     = 1; // GET variables.
+    public static final int INPUT_COOKIE  = 2; // COOKIE variables.
+    public static final int INPUT_ENV     = 4; // ENV variables.
+    public static final int INPUT_SERVER  = 5; // SERVER variables.
+    public static final int INPUT_SESSION = 6; // SESSION variables. (not implemented yet)
+
+    /* Filter module defines this itself (as PARSE_REQUEST) */
+    public static final int INPUT_REQUEST = 99; // REQUEST variables. (not implemented yet)
+
+    /* FILTER constants taken from http://svn.php.net/viewvc/php/php-src/branches/PHP_5_3/ext/filter/filter_private.h?revision=307670&view=markup */
+    public static final int FILTER_FLAG_NONE       = 0x0000; //    No flags.
+
+    public static final int FILTER_REQUIRE_ARRAY   = 0x1000000; //    Require an array as input.
+    public static final int FILTER_REQUIRE_SCALAR  = 0x2000000; //    Flag used to require scalar as input
+
+    public static final int FILTER_FORCE_ARRAY     = 0x4000000; //    Always returns an array.
+    public static final int FILTER_NULL_ON_FAILURE = 0x8000000; //    Use NULL instead of FALSE on failure.
+
+    public static final int FILTER_VALIDATE_ALL     = 0x0100;
+    public static final int FILTER_VALIDATE_INT     = 0x0101; //    ID of "int" filter.
+    public static final int FILTER_VALIDATE_BOOLEAN = 0x0102; //    ID of "boolean" filter.
+    public static final int FILTER_VALIDATE_FLOAT   = 0x0103; //      ID of "float" filter.
+    public static final int FILTER_VALIDATE_REGEXP  = 0x0110; //    ID of "validate_regexp" filter.
+    public static final int FILTER_VALIDATE_URL     = 0x0111; //    ID of "validate_url" filter.
+    public static final int FILTER_VALIDATE_EMAIL   = 0x0112; //    ID of "validate_email" filter.
+    public static final int FILTER_VALIDATE_IP      = 0x0113; //    ID of "validate_ip" filter.
+    public static final int FILTER_VALIDATE_LAST = FILTER_VALIDATE_IP;
+
+    public static final int FILTER_UNSAFE_RAW = 0x0204; //    ID of "unsafe_raw" filter.
+    public static final int FILTER_DEFAULT = FILTER_UNSAFE_RAW; //    ID of default ("string") filter.
+
+    public static final int FILTER_SANITIZE_ALL                = 0x0200;
+    public static final int FILTER_SANITIZE_STRING             = 0x0201; //    ID of "string" filter.
+    public static final int FILTER_SANITIZE_STRIPPED           = FILTER_SANITIZE_STRING; //    ID of "stripped" filter.
+    public static final int FILTER_SANITIZE_ENCODED            = 0x0202; //    ID of "encoded" filter.
+    public static final int FILTER_SANITIZE_SPECIAL_CHARS      = 0x0203; //    ID of "special_chars" filter.
+    public static final int FILTER_SANITIZE_EMAIL              = 0x0205; //    ID of "email" filter.
+    public static final int FILTER_SANITIZE_URL                = 0x0206; //    ID of "url" filter.
+    public static final int FILTER_SANITIZE_NUMBER_INT         = 0x0207; //    ID of "number_int" filter.
+    public static final int FILTER_SANITIZE_NUMBER_FLOAT       = 0x0208; //    ID of "number_float" filter.
+    public static final int FILTER_SANITIZE_MAGIC_QUOTES       = 0x0209; //    ID of "magic_quotes" filter.
+    public static final int FILTER_SANITIZE_FULL_SPECIAL_CHARS = 0x0203;
+    public static final int FILTER_SANITIZE_LAST = FILTER_SANITIZE_FULL_SPECIAL_CHARS;
+
+    public static final int FILTER_CALLBACK = 0x400; //    ID of "callback" filter.
+
+    public static final int FILTER_FLAG_ALLOW_OCTAL       = 0x0001; //    Allow octal notation (0[0-7]+) in "int" filter.
+    public static final int FILTER_FLAG_ALLOW_HEX         = 0x0002; //    Allow hex notation (0x[0-9a-fA-F]+) in "int" filter.
+    public static final int FILTER_FLAG_STRIP_LOW         = 0x0004; //    Strip characters with ASCII value less than 32.
+    public static final int FILTER_FLAG_STRIP_HIGH        = 0x0008; //    Strip characters with ASCII value greater than 127.
+    public static final int FILTER_FLAG_ENCODE_LOW        = 0x0010; //    Encode characters with ASCII value less than 32.
+    public static final int FILTER_FLAG_ENCODE_HIGH       = 0x0020; //    Encode characters with ASCII value greater than 127.
+    public static final int FILTER_FLAG_ENCODE_AMP        = 0x0040; //    Encode &.
+    public static final int FILTER_FLAG_NO_ENCODE_QUOTES  = 0x0080; //    Don't encode ' and ".
+    public static final int FILTER_FLAG_EMPTY_STRING_NULL = 0x0100; //    (No use for now.)
+    public static final int FILTER_FLAG_STRIP_BACKTICK    = 0x0200;
+    public static final int FILTER_FLAG_ALLOW_FRACTION    = 0x1000; //    Allow fractional part in "number_float" filter.
+    public static final int FILTER_FLAG_ALLOW_THOUSAND    = 0x2000; //    Allow thousand separator (,) in "number_float" filter.
+    public static final int FILTER_FLAG_ALLOW_SCIENTIFIC  = 0x4000; //    Allow scientific notation (e, E) in "number_float" filter.
+    public static final int FILTER_FLAG_SCHEME_REQUIRED   = 0x010000; //    Require scheme in "validate_url" filter.
+    public static final int FILTER_FLAG_HOST_REQUIRED     = 0x020000; //    Require host in "validate_url" filter.
+    public static final int FILTER_FLAG_PATH_REQUIRED     = 0x040000; //    Require path in "validate_url" filter.
+    public static final int FILTER_FLAG_QUERY_REQUIRED    = 0x080000; //    Require query in "validate_url" filter.
+    public static final int FILTER_FLAG_IPV4              = 0x100000; //    Allow only IPv4 address in "validate_ip" filter.
+    public static final int FILTER_FLAG_IPV6              = 0x200000; //     Allow only IPv6 address in "validate_ip" filter.
+    public static final int FILTER_FLAG_NO_RES_RANGE      = 0x400000; //     Deny reserved addresses in "validate_ip" filter.
+    public static final int FILTER_FLAG_NO_PRIV_RANGE     = 0x800000; //    Deny private addresses in "validate_ip" filter.
+
+    /* Superglobal constants. Not exposed by Quercus core? */
+    private static final CompiledConstStringValue _GLOBALS = new CompiledConstStringValue("GLOBALS");
+    private static final CompiledConstStringValue _SERVER = new CompiledConstStringValue("_SERVER");
+    private static final CompiledConstStringValue _GET = new CompiledConstStringValue("_GET");
+    private static final CompiledConstStringValue _POST = new CompiledConstStringValue("_POST");
+    private static final CompiledConstStringValue _FILES = new CompiledConstStringValue("_FILES");
+    private static final CompiledConstStringValue _REQUEST = new CompiledConstStringValue("_REQUEST");
+    private static final CompiledConstStringValue _COOKIE = new CompiledConstStringValue("_COOKIE");
+    private static final CompiledConstStringValue _SESSION = new CompiledConstStringValue("_SESSION");
+    private static final CompiledConstStringValue _ENV = new CompiledConstStringValue("_ENV");
+
+    private static final HashMap<StringValue,Value> _constMap = new HashMap<StringValue,Value>();
+    static {
+        // not sure whether these should be in core or filter module
+        addConstant(_constMap, "INPUT_POST", INPUT_POST);
+        addConstant(_constMap, "INPUT_GET", INPUT_GET);
+        addConstant(_constMap, "INPUT_COOKIE", INPUT_COOKIE);
+        addConstant(_constMap, "INPUT_ENV", INPUT_ENV);
+        addConstant(_constMap, "INPUT_SERVER", INPUT_SERVER);
+        addConstant(_constMap, "INPUT_SESSION", INPUT_SESSION);
+        addConstant(_constMap, "INPUT_REQUEST", INPUT_REQUEST);
+    }
+
+    private static final HashMap<Integer, CompiledConstStringValue> _inputTypeMap = new HashMap<Integer, CompiledConstStringValue>();
+    static {
+        _inputTypeMap.put(INPUT_POST, _POST);
+        _inputTypeMap.put(INPUT_GET, _GET);
+        _inputTypeMap.put(INPUT_COOKIE, _COOKIE);
+        _inputTypeMap.put(INPUT_ENV, _ENV);
+        _inputTypeMap.put(INPUT_SERVER, _SERVER);
+        _inputTypeMap.put(INPUT_SESSION, _SESSION);
+        _inputTypeMap.put(INPUT_REQUEST, _REQUEST);
+    }
+
+    static final HashMap<String, Integer> _filterList = new HashMap<String, Integer>();
+    static {
+        _filterList.put("int", FILTER_VALIDATE_INT);
+        _filterList.put("boolean", FILTER_VALIDATE_BOOLEAN);
+        _filterList.put("float", FILTER_VALIDATE_FLOAT);
+        _filterList.put("validate_regexp", FILTER_VALIDATE_REGEXP);
+        _filterList.put("validate_url", FILTER_VALIDATE_URL);
+        _filterList.put("validate_email", FILTER_VALIDATE_EMAIL);
+        _filterList.put("validate_ip", FILTER_VALIDATE_IP);
+
+        _filterList.put("string", FILTER_SANITIZE_STRING);
+        _filterList.put("stripped", FILTER_SANITIZE_STRING);
+        _filterList.put("encoded", FILTER_SANITIZE_ENCODED);
+        _filterList.put("special_chars", FILTER_SANITIZE_SPECIAL_CHARS);
+        _filterList.put("full_special_chars", FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
+        _filterList.put("unsafe_raw", FILTER_UNSAFE_RAW);
+        _filterList.put("email", FILTER_SANITIZE_EMAIL);
+        _filterList.put("url", FILTER_SANITIZE_URL);
+        _filterList.put("number_int", FILTER_SANITIZE_NUMBER_INT);
+        _filterList.put("number_float", FILTER_SANITIZE_NUMBER_FLOAT);
+        _filterList.put("magic_quotes", FILTER_SANITIZE_MAGIC_QUOTES);
+        _filterList.put("callback", FILTER_CALLBACK);
+    }
 
     public FilterModule() {
     }
 
     @Override
+    public Map<StringValue,Value> getConstMap()
+    {
+        return _constMap;
+    }
+
+    @Override
     public String[] getLoadedExtensions() {
         return new String[]{"filter"};
+    }
+
+    private static final boolean arrayHasValue(Value value, StringValue name) {
+        if (! (value instanceof ArrayValue))
+            return false;
+
+        ArrayValue array = (ArrayValue) value;
+
+        Value v = array.get(name);
+        return !(v == null || v.isNull() || v.isEmpty());
     }
 
     /**
@@ -113,9 +220,18 @@ public class FilterModule extends AbstractQuercusModule {
      * @param variable_name     Name of a variable to check.
      * @return Returns TRUE on success or FALSE on failure.
      */
-    public BooleanValue filter_has_var(Env env, IntegerValue type, StringValue variable_name)
+    public BooleanValue filter_has_var(Env env, LongValue type, StringValue variable_name)
     {
-        throw new UnimplementedException("filter_has_var not yet implemented ");
+        CompiledConstStringValue t = _inputTypeMap.get(type.toInt());
+        if (t != null) {
+            EnvVar superglobal = env.getGlobalEnvVar(t, false, false);
+            if (superglobal != null) {
+                return BooleanValue.create(arrayHasValue(superglobal.get(), variable_name));
+            }
+        } else {
+            // TODO: throw something?
+        }
+        return BooleanValue.FALSE;
     }
 
 
@@ -127,7 +243,13 @@ public class FilterModule extends AbstractQuercusModule {
      */
     public Value filter_id(Env env, StringValue filtername)
     {
-        throw new UnimplementedException("filter_id not yet implemented ");
+        if (filtername != null) {
+            Integer id = _filterList.get(filtername.toString());
+            if (id != null) {
+                return new LongValue(id);
+            }
+        }
+        return BooleanValue.FALSE;
     }
 
     /**
@@ -181,9 +303,9 @@ public class FilterModule extends AbstractQuercusModule {
      * and <strong>NULL</strong> if the filter fails.
      */
     public Value filter_input(Env env, IntegerValue type,
-                              StringValue variableName,
-                              @Optional IntegerValue filter,
-                              @Optional Value options)
+            StringValue variableName,
+            @Optional IntegerValue filter,
+            @Optional Value options)
     {
         throw new UnimplementedException();
     }
@@ -200,7 +322,8 @@ public class FilterModule extends AbstractQuercusModule {
      */
     public ArrayValue filter_list(Env env)
     {
-        throw new UnimplementedException();
+        ArrayList<Object> filter_names = new ArrayList<Object>(_filterList.keySet());
+        return new JavaCollectionAdapter(filter_names, env.getJavaClassDefinition(filter_names.getClass()));
     }
 
     /**
